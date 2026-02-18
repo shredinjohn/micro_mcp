@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/python-3.8+-blue?style=flat-square" alt="Python 3.8+">
   <img src="https://img.shields.io/badge/dependencies-zero-brightgreen?style=flat-square" alt="Zero Dependencies">
   <img src="https://img.shields.io/badge/tests-79%20passing-success?style=flat-square" alt="Tests Passing">
   <img src="https://img.shields.io/badge/license-MIT-orange?style=flat-square" alt="MIT License">
@@ -60,6 +60,7 @@ That's it. Your AI assistant can now call `add(3, 5)`.
 | Feature | Description |
 |---|---|
 | 🚀 **Zero Dependencies** | Built entirely with Python's standard library — no `pip install` needed |
+| 🐍 **Python 3.8+** | Compatible with Python 3.8 and above |
 | 🎨 **Decorator API** | FastMCP-style `@mcp.tool()`, `@mcp.resource()`, `@mcp.prompt()` decorators |
 | 📐 **Auto Schema Generation** | Generates JSON Schema from Python type hints — no Pydantic required |
 | 🔌 **Two Transports** | STDIO (subprocess) and SSE (HTTP) out of the box |
@@ -86,7 +87,7 @@ mcp = MCPServer("DemoServer", version="1.0.0")
 @mcp.tool()
 def greet(name: str, greeting: str = "Hello") -> str:
     """Greet someone by name."""
-    return f"{greeting}, {name}! 👋"
+    return "{}, {}! 👋".format(greeting, name)
 
 @mcp.tool()
 def calculate(expression: str) -> str:
@@ -144,7 +145,7 @@ Then import:
 from micro_mcp import MCPServer
 ```
 
-**Requirements:** Python 3.10+ (uses `from __future__ import annotations` and `typing` features).
+**Requirements:** Python 3.8+ (uses `from __future__ import annotations` and standard `typing` module).
 
 ---
 
@@ -160,7 +161,7 @@ Tools are functions that an AI model can **call** to perform actions. They are t
 @mcp.tool()
 def get_weather(city: str) -> str:
     """Get current weather for a city."""
-    return f"Weather in {city}: 22°C, Sunny"
+    return "Weather in {}: 22°C, Sunny".format(city)
 ```
 
 The decorator auto-generates:
@@ -173,22 +174,24 @@ The decorator auto-generates:
 ```python
 @mcp.tool(name="fetch_weather", description="Fetches real-time weather data")
 def get_weather(city: str) -> str:
-    return f"Weather in {city}: 22°C"
+    return "Weather in {}: 22°C".format(city)
 ```
 
 #### Async Tools
 
 ```python
+import asyncio
+
 @mcp.tool()
 async def slow_operation(query: str) -> str:
     """An async tool — awaited automatically."""
     await asyncio.sleep(1)
-    return f"Result for: {query}"
+    return "Result for: {}".format(query)
 ```
 
 #### Complex Type Hints
 
-The schema generator handles complex Python types:
+The schema generator handles complex Python types using `typing` module generics:
 
 ```python
 from typing import Optional, List
@@ -224,6 +227,8 @@ def search(
 | `@dataclass` | `{"type": "object", "properties": ...}` (recursive) |
 | `Any` / missing | `{}` (accepts anything) |
 
+> **Note:** Use `typing` generics (`List[str]`, `Dict[str, int]`, `Optional[str]`) instead of the `list[str]` / `str | None` syntax, which requires Python 3.10+.
+
 ---
 
 ### Resources
@@ -245,7 +250,7 @@ def app_settings() -> str:
 @mcp.resource("users://{user_id}/profile")
 def user_profile(user_id: str) -> str:
     """Fetch a user's profile by ID."""
-    return f'{{"id": "{user_id}", "name": "Alice"}}'
+    return '{{"id": "{}", "name": "Alice"}}'.format(user_id)
 ```
 
 When the AI reads `users://42/profile`, micro_mcp extracts `user_id="42"` and calls your handler.
@@ -282,7 +287,7 @@ Prompts are **reusable templates** that guide how the AI should approach a task.
 @mcp.prompt()
 def summarize(text: str, style: str = "concise") -> str:
     """Summarize text in a given style."""
-    return f"Please summarize the following text in a {style} style:\n\n{text}"
+    return "Please summarize the following text in a {} style:\n\n{}".format(style, text)
 ```
 
 Return a `str` → it becomes a single **user** message.
@@ -298,7 +303,9 @@ def code_review(code: str, language: str = "python") -> list:
     return [
         {
             "role": "user",
-            "content": f"Review this {language} code for best practices:\n\n```{language}\n{code}\n```"
+            "content": "Review this {} code for best practices:\n\n```{}\n{}\n```".format(
+                language, language, code
+            )
         },
         {
             "role": "assistant",
@@ -331,7 +338,7 @@ def process_data(data: str, ctx: MCPContext = None) -> str:
     """A tool that uses context for logging and progress."""
 
     ctx.info("Starting data processing...")
-    ctx.debug(f"Input size: {len(data)} chars")
+    ctx.debug("Input size: {} chars".format(len(data)))
 
     # Report progress (0.0 to 1.0)
     ctx.report_progress(0.0)
@@ -365,6 +372,8 @@ def process_data(data: str, ctx: MCPContext = None) -> str:
 Run setup/teardown code when the server starts and stops:
 
 ```python
+import sys
+
 @mcp.on_startup
 def initialize():
     """Runs when the server starts (before handling requests)."""
@@ -407,7 +416,7 @@ mcp.run("stdio")    # Explicit
 3. Reads JSON-RPC responses from stdout
 4. All logging goes to **stderr** (never pollutes the JSON stream)
 
-**Uses a threading-based stdin reader** for cross-platform compatibility (Windows doesn't support `asyncio.connect_read_pipe` on regular file handles).
+Uses a **threading-based stdin reader** for cross-platform compatibility (Windows, macOS, Linux).
 
 ---
 
@@ -460,7 +469,7 @@ from micro_mcp import TextContent
 
 @mcp.tool()
 def analyze(text: str) -> TextContent:
-    return TextContent(text=f"Analysis: {text}")
+    return TextContent(text="Analysis: {}".format(text))
 ```
 
 ### ImageContent
@@ -660,7 +669,7 @@ python -m unittest tests.test_stdio_transport -v
 ### `MCPServer`
 
 ```python
-MCPServer(name: str = "micro_mcp", version: str = "1.0.0")
+MCPServer(name="micro_mcp", version="1.0.0")
 ```
 
 | Method / Decorator | Description |
@@ -697,6 +706,23 @@ MCPContext(request_id=None, server_name="micro_mcp", progress_callback=None)
 
 ---
 
+## Python Version Compatibility
+
+micro_mcp is compatible with **Python 3.8 and above**. The codebase uses:
+
+- `from __future__ import annotations` for forward-compatible type hints
+- `typing` module generics (`List`, `Dict`, `Optional`, `Union`) instead of PEP 604 `X | Y` syntax
+- Only standard library modules available since Python 3.8
+
+**Type hint style guide for your servers:**
+
+```python
+# ✅ Works on Python 3.8+
+from typing import Optional, List, Dict
+
+def my_tool(name: str, tags: Optional[List[str]] = None) -> str:
+---
+
 ## MCP Protocol Compliance
 
 micro_mcp implements the following MCP methods:
@@ -724,10 +750,10 @@ micro_mcp implements the following MCP methods:
 |---|---|---|
 | **Dependencies** | Zero | Pydantic, httpx, uvicorn, etc. |
 | **Install size** | ~30 KB | Hundreds of MB |
+| **Python version** | 3.8+ | 3.10+ |
 | **Schema generation** | Python type hints | Pydantic models |
 | **Learning curve** | Same decorator API | — |
 | **Portability** | Copy a folder | pip install chain |
-| **Python version** | 3.10+ | 3.10+ |
 
 ---
 
